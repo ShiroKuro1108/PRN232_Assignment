@@ -2,8 +2,10 @@
 let products = [];
 let currentEditingId = null;
 
-// API base URL - adjust this based on your deployment
-const API_BASE_URL = '/api/products';
+// API base URL - automatically detects environment
+const API_BASE_URL = window.location.hostname === 'localhost'
+    ? '/api/products'  // Local development
+    : 'https://your-api-app.onrender.com/api/products';  // Production API on Render
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {

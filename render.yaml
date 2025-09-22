@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ecommerce-clothing-store
+    name: ecommerce-api
     env: dotnet
     buildCommand: dotnet publish -c Release -o out
     startCommand: dotnet out/assignment.dll
@@ -10,12 +10,5 @@ services:
       - key: ASPNETCORE_URLS
         value: http://0.0.0.0:$PORT
       - key: ConnectionStrings__DefaultConnection
-        fromDatabase:
-          name: ecommerce-db
-          property: connectionString
+        value: # Add your Supabase connection string here
     healthCheckPath: /api/products
-
-databases:
-  - name: ecommerce-db
-    databaseName: ecommerce_db
-    user: ecommerce_user

@@ -1,0 +1,10 @@
+{
+  "name": "ecommerce-clothing-store",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "dotnet publish -c Release -o dist && cp -r wwwroot/* dist/",
+    "start": "dotnet dist/assignment.dll"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -2,21 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "*.csproj",
-      "use": "@vercel/dotnet"
+      "src": "wwwroot/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/"
+      "dest": "/wwwroot/$1"
     }
-  ],
-  "env": {
-    "ASPNETCORE_ENVIRONMENT": "Production"
-  }
+  ]
 }
