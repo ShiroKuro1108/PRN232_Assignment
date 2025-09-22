@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ecommerce-clothing-store
+    env: dotnet
+    buildCommand: dotnet publish -c Release -o out
+    startCommand: dotnet out/assignment.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:$PORT
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: ecommerce-db
+          property: connectionString
+    healthCheckPath: /api/products
+
+databases:
+  - name: ecommerce-db
+    databaseName: ecommerce_db
+    user: ecommerce_user

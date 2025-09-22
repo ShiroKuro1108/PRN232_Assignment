@@ -1,0 +1,12 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=your_production_host;Database=your_production_db;Username=your_production_username;Password=your_production_password;SSL Mode=Require"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "your-domain.com,www.your-domain.com"
+}
