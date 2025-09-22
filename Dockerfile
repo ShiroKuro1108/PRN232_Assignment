@@ -14,15 +14,11 @@ RUN dotnet publish -c Release -o out
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Install Entity Framework tools for migrations
-RUN dotnet tool install --global dotnet-ef
-ENV PATH="$PATH:/root/.dotnet/tools"
-
 COPY --from=build /app/out .
 
 # Expose port
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
-# Run migrations and start the app
+# Start the app
 ENTRYPOINT ["dotnet", "assignment.dll"]
