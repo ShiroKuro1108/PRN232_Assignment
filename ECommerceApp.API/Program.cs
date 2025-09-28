@@ -8,51 +8,55 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add Entity Framework with debugging
+// Capture connection string once at startup
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+Console.WriteLine($"🔍 DATABASE_URL found: {!string.IsNullOrEmpty(connectionString)}");
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    Console.WriteLine("⚠️ Using fallback connection from appsettings.json");
+}
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("❌ No database connection string found.");
+}
+
+Console.WriteLine($"🔍 Connection string length: {connectionString.Length}");
+Console.WriteLine($"🔍 Connection string preview: {connectionString.Substring(0, Math.Min(50, connectionString.Length))}...");
+
+// Handle postgres:// vs postgresql://
+if (connectionString.StartsWith("postgres://"))
+{
+    connectionString = connectionString.Replace("postgres://", "postgresql://");
+    Console.WriteLine("🔄 Converted postgres:// to postgresql://");
+}
+
+// Test the connection string format before using it
+try
+{
+    var testUri = new Uri(connectionString);
+    Console.WriteLine($"✅ Connection string is valid URI format");
+    Console.WriteLine($"🔍 Host: {testUri.Host}");
+    Console.WriteLine($"🔍 Database: {testUri.AbsolutePath.TrimStart('/')}");
+    Console.WriteLine($"🔍 Username: {testUri.UserInfo?.Split(':')[0] ?? "unknown"}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Connection string is NOT valid URI: {ex.Message}");
+    Console.WriteLine($"🔍 Raw string: '{connectionString}'");
+}
+
+// Store the connection string in a variable that won't change
+var finalConnectionString = connectionString;
+
+// Add Entity Framework with captured connection string
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
-    Console.WriteLine($"🔍 DATABASE_URL found: {!string.IsNullOrEmpty(connectionString)}");
-
-    if (string.IsNullOrEmpty(connectionString))
-    {
-        connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        Console.WriteLine("⚠️ Using fallback connection from appsettings.json");
-    }
-
-    if (string.IsNullOrEmpty(connectionString))
-    {
-        throw new InvalidOperationException("❌ No database connection string found.");
-    }
-
-    Console.WriteLine($"🔍 Connection string length: {connectionString.Length}");
-    Console.WriteLine($"🔍 Connection string preview: {connectionString.Substring(0, Math.Min(50, connectionString.Length))}...");
-
-    // Handle postgres:// vs postgresql://
-    if (connectionString.StartsWith("postgres://"))
-    {
-        connectionString = connectionString.Replace("postgres://", "postgresql://");
-        Console.WriteLine("🔄 Converted postgres:// to postgresql://");
-    }
-
-    // Test the connection string format before using it
     try
     {
-        var testUri = new Uri(connectionString);
-        Console.WriteLine($"✅ Connection string is valid URI format");
-        Console.WriteLine($"🔍 Host: {testUri.Host}");
-        Console.WriteLine($"🔍 Database: {testUri.AbsolutePath.TrimStart('/')}");
-        Console.WriteLine($"🔍 Username: {testUri.UserInfo?.Split(':')[0] ?? "unknown"}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Connection string is NOT valid URI: {ex.Message}");
-        Console.WriteLine($"🔍 Raw string: '{connectionString}'");
-    }
-
-    try
-    {
-        options.UseNpgsql(connectionString);
+        options.UseNpgsql(finalConnectionString);
         Console.WriteLine("✅ DbContext configured successfully");
     }
     catch (Exception ex)
