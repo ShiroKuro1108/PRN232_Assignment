@@ -82,23 +82,21 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Test database connection
+// Test database connection with direct query
 try
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    Console.WriteLine("🔄 Testing database connection...");
-    var canConnect = await context.Database.CanConnectAsync();
+    Console.WriteLine("🔄 Testing database connection with direct query...");
 
-    if (canConnect)
-    {
-        Console.WriteLine("✅ Database connection successful!");
-    }
-    else
-    {
-        Console.WriteLine("❌ Database connection failed");
-    }
+    // Skip CanConnectAsync() and try direct database operations
+    await context.Database.EnsureCreatedAsync();
+    Console.WriteLine("✅ Database schema ensured!");
+
+    var productCount = await context.Products.CountAsync();
+    Console.WriteLine($"✅ Database query successful! Found {productCount} products.");
+    Console.WriteLine("🎉 Database connection is working perfectly!");
 }
 catch (Exception ex)
 {
