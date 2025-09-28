@@ -48,10 +48,28 @@ catch (Exception ex)
     Console.WriteLine($"🔍 Raw string: '{connectionString}'");
 }
 
-// Store the connection string in a variable that won't change
-var finalConnectionString = connectionString;
+// Convert URI format to Npgsql connection string format
+string finalConnectionString;
+try
+{
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    var username = userInfo[0];
+    var password = userInfo.Length > 1 ? userInfo[1] : "";
+    var host = uri.Host;
+    var database = uri.AbsolutePath.TrimStart('/');
 
-// Add Entity Framework with captured connection string
+    finalConnectionString = $"Host={host};Database={database};Username={username};Password={password};SSL Mode=Require";
+    Console.WriteLine("✅ Converted URI to Npgsql connection string format");
+    Console.WriteLine($"🔍 Final connection string: Host={host};Database={database};Username={username};Password=***;SSL Mode=Require");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Failed to convert URI to connection string: {ex.Message}");
+    finalConnectionString = connectionString; // Fallback to original
+}
+
+// Add Entity Framework with converted connection string
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     try
