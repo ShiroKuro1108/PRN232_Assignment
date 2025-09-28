@@ -146,12 +146,26 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
-            Console.WriteLine(" Cannot connect to database");
-            Console.WriteLine("This usually means:");
-            Console.WriteLine("   - Wrong credentials (username/password)");
-            Console.WriteLine("   - Wrong hostname or port");
-            Console.WriteLine("   - Database is not accessible from this network");
-            Console.WriteLine("   - Database is sleeping (free tier limitation)");
+            Console.WriteLine("❌ CanConnectAsync() returned false");
+
+            // Try a direct query to see if connection actually works
+            Console.WriteLine("🔄 Attempting direct database query despite CanConnectAsync() failure...");
+            try
+            {
+                var productCount = await context.Products.CountAsync();
+                Console.WriteLine($"🎉 SURPRISE! Direct query worked! Found {productCount} products.");
+                Console.WriteLine("🔍 This means CanConnectAsync() is unreliable but database actually works!");
+            }
+            catch (Exception queryEx)
+            {
+                Console.WriteLine($"❌ Direct query also failed: {queryEx.Message}");
+                Console.WriteLine("🔍 This confirms the database connection is truly broken");
+                Console.WriteLine("🔍 Possible causes:");
+                Console.WriteLine("   - Wrong credentials (username/password)");
+                Console.WriteLine("   - Wrong hostname or port");
+                Console.WriteLine("   - Database is not accessible from this network");
+                Console.WriteLine("   - Database is sleeping (free tier limitation)");
+            }
         }
     }
     catch (Npgsql.NpgsqlException ex)
