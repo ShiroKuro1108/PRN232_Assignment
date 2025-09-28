@@ -95,11 +95,11 @@ try
     Console.WriteLine("🔄 Testing database connection with detailed debugging...");
 
     // Get the actual connection string being used by Entity Framework
-    var connectionString = context.Database.GetConnectionString();
-    Console.WriteLine($"🔍 EF Connection String: '{connectionString ?? "NULL"}'");
-    Console.WriteLine($"🔍 EF Connection String Length: {connectionString?.Length ?? 0}");
+    var efConnectionString = context.Database.GetConnectionString();
+    Console.WriteLine($"🔍 EF Connection String: '{efConnectionString ?? "NULL"}'");
+    Console.WriteLine($"🔍 EF Connection String Length: {efConnectionString?.Length ?? 0}");
 
-    if (string.IsNullOrEmpty(connectionString))
+    if (string.IsNullOrEmpty(efConnectionString))
     {
         Console.WriteLine("❌ Entity Framework has NO connection string!");
         Console.WriteLine("🔍 This explains the 'Format of initialization string' error");
@@ -108,7 +108,7 @@ try
 
     // Try to create a direct Npgsql connection to test
     Console.WriteLine("🔄 Testing direct Npgsql connection...");
-    using var directConnection = new Npgsql.NpgsqlConnection(connectionString);
+    using var directConnection = new Npgsql.NpgsqlConnection(efConnectionString);
     await directConnection.OpenAsync();
     Console.WriteLine("✅ Direct Npgsql connection successful!");
     await directConnection.CloseAsync();
