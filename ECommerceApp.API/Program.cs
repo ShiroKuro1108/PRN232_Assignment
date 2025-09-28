@@ -24,12 +24,18 @@ Console.WriteLine("=====================================");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+    Console.WriteLine($"Raw DATABASE_URL: {(!string.IsNullOrEmpty(connectionString) ? "Found" : "Not Found")}");
 
     if (string.IsNullOrEmpty(connectionString))
     {
         // Fallback to appsettings.json for local development
         connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         Console.WriteLine("Using fallback connection string from appsettings.json");
+        Console.WriteLine("This should only happen in local development!");
+    }
+    else
+    {
+        Console.WriteLine("Using DATABASE_URL environment variable");
     }
 
     if (string.IsNullOrEmpty(connectionString))
@@ -40,11 +46,25 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     // Clean up the connection string
     connectionString = connectionString.Trim();
 
-    // Handle postgres:// vs postgresql:// 
+    // Handle postgres:// vs postgresql://
     if (connectionString.StartsWith("postgres://"))
     {
         connectionString = connectionString.Replace("postgres://", "postgresql://");
         Console.WriteLine("Converted postgres:// to postgresql://");
+    }
+
+    // Extract and log username for debugging (without exposing password)
+    try
+    {
+        var uri = new Uri(connectionString);
+        var username = uri.UserInfo?.Split(':')[0];
+        Console.WriteLine($"Connection will use username: {username ?? "unknown"}");
+        Console.WriteLine($"Database host: {uri.Host}");
+        Console.WriteLine($"Database name: {uri.AbsolutePath.TrimStart('/')}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Could not parse connection string for debugging: {ex.Message}");
     }
 
     Console.WriteLine($"Final connection string preview: {connectionString.Substring(0, Math.Min(30, connectionString.Length))}...");
@@ -118,10 +138,20 @@ using (var scope = app.Services.CreateScope())
             {
                 Console.WriteLine("Database schema already exists");
             }
+
+            // Test a simple query to verify everything works
+            Console.WriteLine("Testing database query...");
+            var productCount = await context.Products.CountAsync();
+            Console.WriteLine($"Database query successful! Found {productCount} products.");
         }
         else
         {
             Console.WriteLine(" Cannot connect to database");
+            Console.WriteLine("This usually means:");
+            Console.WriteLine("   - Wrong credentials (username/password)");
+            Console.WriteLine("   - Wrong hostname or port");
+            Console.WriteLine("   - Database is not accessible from this network");
+            Console.WriteLine("   - Database is sleeping (free tier limitation)");
         }
     }
     catch (Npgsql.NpgsqlException ex)
@@ -129,27 +159,39 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"PostgreSQL Error: {ex.Message}");
         Console.WriteLine($"Error Code: {ex.SqlState}");
 
-        if (ex.Message.Contains("authentication"))
+        if (ex.Message.Contains("authentication") || ex.Message.Contains("password"))
         {
-            Console.WriteLine("This looks like an authentication issue. Check username/password in connection string.");
+            Console.WriteLine("AUTHENTICATION ISSUE: Check username/password in connection string.");
+            Console.WriteLine("   - Verify DATABASE_URL has correct credentials");
+            Console.WriteLine("   - Check for typos in username or password");
         }
         else if (ex.Message.Contains("does not exist"))
         {
-            Console.WriteLine(" Database or host not found. Check hostname and database name.");
+            Console.WriteLine("DATABASE/HOST NOT FOUND: Check hostname and database name.");
+            Console.WriteLine("   - Verify hostname is correct");
+            Console.WriteLine("   - Check database name matches exactly");
+        }
+        else if (ex.Message.Contains("timeout") || ex.Message.Contains("network"))
+        {
+            Console.WriteLine(" NETWORK ISSUE: Cannot reach database server.");
+            Console.WriteLine("   - Database might be sleeping (free tier)");
+            Console.WriteLine("   - Check if database is in same region");
         }
 
-        throw;
+        // Don't throw in production - let app start anyway
+        Console.WriteLine("App will continue starting despite database connection failure");
     }
     catch (System.ArgumentException ex)
     {
-        Console.WriteLine($" Connection String Format Error: {ex.Message}");
-        Console.WriteLine(" The connection string format is invalid. Check for typos or missing parts.");
-        throw;
+        Console.WriteLine($"Connection String Format Error: {ex.Message}");
+        Console.WriteLine("The connection string format is invalid. Check for typos or missing parts.");
+        Console.WriteLine("App will continue starting despite database connection failure");
     }
     catch (Exception ex)
     {
         Console.WriteLine($"Unexpected database error: {ex.Message}");
-        throw;
+        Console.WriteLine($"Error type: {ex.GetType().Name}");
+        Console.WriteLine("App will continue starting despite database connection failure");
     }
 }
 

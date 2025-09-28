@@ -133,3 +133,4 @@ artifacts/
 # Deployment files
 publish/
 PublishProfiles/
+.cunzhi-memory/
