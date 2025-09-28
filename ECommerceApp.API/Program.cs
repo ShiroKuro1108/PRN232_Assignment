@@ -52,6 +52,13 @@ builder.Services.AddCors(options =>
                 "https://localhost:3000",
                 "https://prn-232-assignment-e9xn-8eaatimqs-dung-quangs-projects.vercel.app"
             )
+            .SetIsOriginAllowed(origin =>
+            {
+                // Allow any Vercel app domain
+                return origin.Contains("vercel.app") ||
+                       origin.StartsWith("http://localhost") ||
+                       origin.StartsWith("https://localhost");
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
