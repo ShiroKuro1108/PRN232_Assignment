@@ -50,7 +50,7 @@ builder.Services.AddCors(options =>
             policy.WithOrigins(
                 "http://localhost:3000",
                 "https://localhost:3000",
-                "https://prn-232-assignment-e9xn.vercel.app/"
+                "https://prn-232-assignment-e9xn-8eaatimqs-dung-quangs-projects.vercel.app"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
