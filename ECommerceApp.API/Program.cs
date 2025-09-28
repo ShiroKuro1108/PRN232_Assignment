@@ -8,44 +8,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Capture connection string once at startup
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
-Console.WriteLine($"🔍 DATABASE_URL found: {!string.IsNullOrEmpty(connectionString)}");
+// Get database connection string
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
 if (string.IsNullOrEmpty(connectionString))
 {
-    connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    Console.WriteLine("⚠️ Using fallback connection from appsettings.json");
-}
-
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException("❌ No database connection string found.");
-}
-
-Console.WriteLine($"🔍 Connection string length: {connectionString.Length}");
-Console.WriteLine($"🔍 Connection string preview: {connectionString.Substring(0, Math.Min(50, connectionString.Length))}...");
-
-// Handle postgres:// vs postgresql://
-if (connectionString.StartsWith("postgres://"))
-{
-    connectionString = connectionString.Replace("postgres://", "postgresql://");
-    Console.WriteLine("🔄 Converted postgres:// to postgresql://");
-}
-
-// Test the connection string format before using it
-try
-{
-    var testUri = new Uri(connectionString);
-    Console.WriteLine($"✅ Connection string is valid URI format");
-    Console.WriteLine($"🔍 Host: {testUri.Host}");
-    Console.WriteLine($"🔍 Database: {testUri.AbsolutePath.TrimStart('/')}");
-    Console.WriteLine($"🔍 Username: {testUri.UserInfo?.Split(':')[0] ?? "unknown"}");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"❌ Connection string is NOT valid URI: {ex.Message}");
-    Console.WriteLine($"🔍 Raw string: '{connectionString}'");
+    throw new InvalidOperationException("No database connection string found.");
 }
 
 // Convert URI format to Npgsql connection string format
@@ -59,30 +28,17 @@ try
     var host = uri.Host;
     var database = uri.AbsolutePath.TrimStart('/');
 
-    finalConnectionString = $"Host={host};Database={database};Username={username};Password={password};SSL Mode=Require";
-    Console.WriteLine("✅ Converted URI to Npgsql connection string format");
-    Console.WriteLine($"🔍 Final connection string: Host={host};Database={database};Username={username};Password=***;SSL Mode=Require");
+    finalConnectionString = $"Host={host};Database={database};Username={username};Password={password};SSL Mode=Prefer;Trust Server Certificate=true";
 }
-catch (Exception ex)
+catch (Exception)
 {
-    Console.WriteLine($"❌ Failed to convert URI to connection string: {ex.Message}");
     finalConnectionString = connectionString; // Fallback to original
 }
 
-// Add Entity Framework with converted connection string
+// Add Entity Framework
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    try
-    {
-        options.UseNpgsql(finalConnectionString);
-        Console.WriteLine("✅ DbContext configured successfully");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ DbContext configuration failed: {ex.Message}");
-        Console.WriteLine($"🔍 Exception type: {ex.GetType().Name}");
-        throw;
-    }
+    options.UseNpgsql(finalConnectionString);
 });
 
 // Add CORS
@@ -104,51 +60,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Test database connection with detailed debugging
+// Ensure database is created
 try
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-    Console.WriteLine("🔄 Testing database connection with detailed debugging...");
-
-    // Get the actual connection string being used by Entity Framework
-    var efConnectionString = context.Database.GetConnectionString();
-    Console.WriteLine($"🔍 EF Connection String: '{efConnectionString ?? "NULL"}'");
-    Console.WriteLine($"🔍 EF Connection String Length: {efConnectionString?.Length ?? 0}");
-
-    if (string.IsNullOrEmpty(efConnectionString))
-    {
-        Console.WriteLine("❌ Entity Framework has NO connection string!");
-        Console.WriteLine("🔍 This explains the 'Format of initialization string' error");
-        return;
-    }
-
-    // Try to create a direct Npgsql connection to test
-    Console.WriteLine("🔄 Testing direct Npgsql connection...");
-    using var directConnection = new Npgsql.NpgsqlConnection(efConnectionString);
-    await directConnection.OpenAsync();
-    Console.WriteLine("✅ Direct Npgsql connection successful!");
-    await directConnection.CloseAsync();
-
-    // Now try Entity Framework operations
-    Console.WriteLine("🔄 Testing Entity Framework operations...");
     await context.Database.EnsureCreatedAsync();
-    Console.WriteLine("✅ Database schema ensured!");
-
-    var productCount = await context.Products.CountAsync();
-    Console.WriteLine($"✅ Database query successful! Found {productCount} products.");
-    Console.WriteLine("🎉 Database connection is working perfectly!");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ Database connection error: {ex.Message}");
-    Console.WriteLine($"🔍 Error type: {ex.GetType().Name}");
-    if (ex.InnerException != null)
-    {
-        Console.WriteLine($"🔍 Inner error: {ex.InnerException.Message}");
-    }
-    Console.WriteLine($"🔍 Stack trace: {ex.StackTrace}");
+    Console.WriteLine($"Database initialization error: {ex.Message}");
 }
 
 // Configure the HTTP request pipeline
