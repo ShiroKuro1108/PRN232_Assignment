@@ -13,6 +13,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
                           ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+    // Handle Render PostgreSQL URL format
+    if (connectionString != null && connectionString.StartsWith("postgres://"))
+    {
+        connectionString = connectionString.Replace("postgres://", "postgresql://");
+    }
+
     options.UseNpgsql(connectionString);
 });
 
@@ -25,8 +32,8 @@ builder.Services.AddCors(options =>
             policy.WithOrigins(
                 "http://localhost:3000",
                 "https://localhost:3000",
-                "https://*.vercel.app",
-                "https://your-app-name.vercel.app" // Update this with your actual Vercel domain
+                "https://*.vercel.app"
+            // Add your Vercel URL here later: "https://your-app.vercel.app"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -37,46 +44,42 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Enable Swagger in all environments for API testing
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-else
-{
-    // Enable Swagger in production for API testing
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ECommerce API V1");
-        c.RoutePrefix = "swagger";
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ECommerce API V1");
+    c.RoutePrefix = "swagger";
+});
 
-// Ensure database is created and migrated
+// Ensure database is created
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
     try
     {
+        logger.LogInformation("Creating database...");
         context.Database.EnsureCreated();
-        // Alternatively, use migrations if you have them:
-        // context.Database.Migrate();
+        logger.LogInformation("Database created successfully");
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while creating/migrating the database.");
+        logger.LogError(ex, "An error occurred while creating the database: {Message}", ex.Message);
     }
 }
 
-app.UseHttpsRedirection();
+// Middleware pipeline
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
 
-// Configure port for Render
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-app.Urls.Add($"http://0.0.0.0:{port}");
+// Configure port - Render provides PORT environment variable
+var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
+var urls = $"http://0.0.0.0:{port}";
+app.Urls.Add(urls);
+
+Console.WriteLine($"Application starting on: {urls}");
 
 app.Run();
