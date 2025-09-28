@@ -86,15 +86,35 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Test database connection with direct query
+// Test database connection with detailed debugging
 try
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    Console.WriteLine("🔄 Testing database connection with direct query...");
+    Console.WriteLine("🔄 Testing database connection with detailed debugging...");
 
-    // Skip CanConnectAsync() and try direct database operations
+    // Get the actual connection string being used by Entity Framework
+    var connectionString = context.Database.GetConnectionString();
+    Console.WriteLine($"🔍 EF Connection String: '{connectionString ?? "NULL"}'");
+    Console.WriteLine($"🔍 EF Connection String Length: {connectionString?.Length ?? 0}");
+
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        Console.WriteLine("❌ Entity Framework has NO connection string!");
+        Console.WriteLine("🔍 This explains the 'Format of initialization string' error");
+        return;
+    }
+
+    // Try to create a direct Npgsql connection to test
+    Console.WriteLine("🔄 Testing direct Npgsql connection...");
+    using var directConnection = new Npgsql.NpgsqlConnection(connectionString);
+    await directConnection.OpenAsync();
+    Console.WriteLine("✅ Direct Npgsql connection successful!");
+    await directConnection.CloseAsync();
+
+    // Now try Entity Framework operations
+    Console.WriteLine("🔄 Testing Entity Framework operations...");
     await context.Database.EnsureCreatedAsync();
     Console.WriteLine("✅ Database schema ensured!");
 
@@ -110,6 +130,7 @@ catch (Exception ex)
     {
         Console.WriteLine($"🔍 Inner error: {ex.InnerException.Message}");
     }
+    Console.WriteLine($"🔍 Stack trace: {ex.StackTrace}");
 }
 
 // Configure the HTTP request pipeline
