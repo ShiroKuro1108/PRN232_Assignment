@@ -134,3 +134,4 @@ artifacts/
 publish/
 PublishProfiles/
 .cunzhi-memory/
+appsettings.Development.json
